@@ -3,32 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Photobooth</title>
+    <title>Elegant Photobooth</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Add Google Font for more elegant typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
-        <h1>Simple Photobooth</h1>
+        <h1>Elegant Photobooth</h1>
+        <p class="subtitle">Take 3 beautiful photos and create your unique photo strip</p>
         
         <div class="photobooth">
-            <div class="camera-container">
-                <video id="camera" autoplay playsinline></video>
-                <div id="countdown" class="countdown"></div>
-                <canvas id="canvas" style="display:none;"></canvas>
+            <div class="camera-section">
+                <div class="camera-container">
+                    <video id="camera" autoplay playsinline></video>
+                    <div id="countdown" class="countdown"></div>
+                    <canvas id="canvas" style="display:none;"></canvas>
+                </div>
+                
+                <div class="controls">
+                    <button id="start-btn" class="btn">Start Photobooth</button>
+                    <div id="status" class="status">Ready to take 3 photos</div>
+                </div>
             </div>
             
-            <div class="controls">
-                <button id="start-btn" class="btn">Start Photobooth</button>
-                <div id="status" class="status">Ready to take 3 photos</div>
-            </div>
-            
-            <div class="preview-container">
+            <div class="preview-section">
+                <h2>Your Photo Strip</h2>
                 <div class="photo-strip-container">
                     <canvas id="strip" style="display:none;"></canvas>
                     <img id="preview" class="preview" alt="Your photo strip will appear here">
+                    <div class="empty-state" id="empty-preview">
+                        <p>Your photo strip will appear here after taking 3 photos</p>
+                    </div>
                 </div>
-                <button id="download-btn" class="btn" disabled>Download Photo Strip</button>
+                <div class="download-controls">
+                    <button id="download-btn" class="btn btn-download" disabled>Download Photo Strip</button>
+                </div>
             </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>How it works:</h3>
+            <ol>
+                <li>Click "Start Photobooth" and allow camera access</li>
+                <li>Wait for the countdown before each photo</li>
+                <li>Stay still when you see the flash - that's when the photo is taken</li>
+                <li>After 3 photos, your photo strip will be created automatically</li>
+                <li>Preview your photo strip and download it</li>
+            </ol>
         </div>
     </div>
     

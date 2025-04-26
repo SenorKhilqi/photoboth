@@ -16,11 +16,29 @@ document.addEventListener('DOMContentLoaded', () => {
     let photoImages = [];
     let photoStripReady = false;
     
-    // Canvas setup
+    // Canvas setup with high resolution
     const ctx = canvas.getContext('2d');
     const stripCtx = stripCanvas.getContext('2d');
-    canvas.width = 640;
-    canvas.height = 480;
+    
+    // Enable image smoothing for better quality
+    ctx.imageSmoothingEnabled = true;
+    stripCtx.imageSmoothingEnabled = true;
+    
+    // Using higher resolution (720p minimum)
+    const videoConstraints = {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        aspectRatio: { ideal: 16/9 }
+    };
+    
+    // Setup canvas based on aspect ratio
+    function setupCanvas() {
+        // Initialize with high resolution
+        canvas.width = 1280;
+        canvas.height = 720;
+    }
+    
+    setupCanvas();
     
     // Start the photobooth
     startBtn.addEventListener('click', async () => {
@@ -32,14 +50,22 @@ document.addEventListener('DOMContentLoaded', () => {
             downloadBtn.disabled = true;
             
             try {
-                // Request camera access
+                // Request camera access with high quality constraints
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
+                    video: videoConstraints,
                     audio: false
                 });
                 
                 // Display camera feed
                 camera.srcObject = stream;
+                
+                // Wait for video metadata to load to maintain proper aspect ratio
+                camera.onloadedmetadata = () => {
+                    // Adjust canvas size to match actual video dimensions
+                    // This maintains the proper aspect ratio
+                    canvas.width = camera.videoWidth;
+                    canvas.height = camera.videoHeight;
+                };
                 
                 // Disable button and start countdown
                 startBtn.disabled = true;
@@ -60,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (photoStripReady) {
             const link = document.createElement('a');
             link.download = 'photobooth-strip.png';
-            link.href = stripCanvas.toDataURL('image/png');
+            link.href = stripCanvas.toDataURL('image/png', 1.0); // Using highest quality
             link.click();
         }
     });
@@ -108,11 +134,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create flash effect
         createFlashEffect();
         
-        // Draw video to canvas
+        // Draw video to canvas maintaining aspect ratio
         ctx.drawImage(camera, 0, 0, canvas.width, canvas.height);
         
-        // Get image data
-        const imageData = canvas.toDataURL('image/png');
+        // Get image data at high quality
+        const imageData = canvas.toDataURL('image/png', 1.0);
         
         // Store photo
         const img = new Image();
@@ -154,21 +180,40 @@ document.addEventListener('DOMContentLoaded', () => {
             camera.srcObject = null;
         }
         
-        // Calculate dimensions
-        const photoWidth = 300;
-        const photoHeight = 225;
-        const padding = 10;
-        const textHeight = 50;
+        // Calculate dimensions based on actual photo size
+        // Maintain aspect ratio but scale down if needed
+        const aspectRatio = photoImages[0].width / photoImages[0].height;
+        const photoWidth = 350;
+        const photoHeight = Math.round(photoWidth / aspectRatio);
+        const padding = 20;
+        const innerPadding = 10;
+        const borderRadius = 10;
+        const textHeight = 80;
         
-        // Set strip canvas size
-        stripCanvas.width = photoWidth;
-        stripCanvas.height = (photoHeight * totalPhotos) + padding + textHeight;
+        // Set strip canvas size, adding padding between photos
+        stripCanvas.width = photoWidth + (padding * 2);
+        stripCanvas.height = (photoHeight * totalPhotos) + (innerPadding * (totalPhotos - 1)) + (padding * 2) + textHeight;
         
-        // Clear canvas
-        stripCtx.fillStyle = 'white';
+        // Set background color for strip (soft pastel)
+        stripCtx.fillStyle = '#FFF9F9'; // Very light pink
         stripCtx.fillRect(0, 0, stripCanvas.width, stripCanvas.height);
         
-        // Draw each photo onto the strip
+        // Draw rounded rectangle function
+        function roundedRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+        
+        // Wait for all images to load
         let waitCount = 0;
         
         function drawImagesWhenReady() {
@@ -179,35 +224,70 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Draw photos
             for (let i = 0; i < photoImages.length; i++) {
+                // Calculate position with padding between photos
+                const yPos = padding + (i * (photoHeight + innerPadding));
+                
+                // Draw shadow for each photo
+                stripCtx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+                stripCtx.shadowBlur = 6;
+                stripCtx.shadowOffsetX = 0;
+                stripCtx.shadowOffsetY = 2;
+                
+                // Draw white background for each photo with rounded corners
+                stripCtx.fillStyle = 'white';
+                roundedRect(stripCtx, padding, yPos, photoWidth, photoHeight, borderRadius);
+                stripCtx.fill();
+                
+                // Reset shadow for the image itself
+                stripCtx.shadowColor = 'transparent';
+                stripCtx.shadowBlur = 0;
+                stripCtx.shadowOffsetX = 0;
+                stripCtx.shadowOffsetY = 0;
+                
+                // Create clipping path for rounded corners
+                roundedRect(stripCtx, padding, yPos, photoWidth, photoHeight, borderRadius);
+                stripCtx.clip();
+                
+                // Draw the image with proper aspect ratio
                 stripCtx.drawImage(
                     photoImages[i],
-                    0, i * photoHeight,
+                    padding, yPos,
                     photoWidth, photoHeight
                 );
+                
+                // Reset clip
+                stripCtx.restore();
+                stripCtx.save();
             }
             
-            // Add text at the bottom
-            const textY = (photoHeight * totalPhotos) + padding + 30;
-            stripCtx.fillStyle = '#ff6b6b';
-            stripCtx.font = 'bold 24px Arial';
+            // Reset any clipping before drawing text
+            stripCtx.restore();
+            
+            // Add text at the bottom with elegant font
+            const textY = (padding * 2) + (photoHeight * totalPhotos) + (innerPadding * (totalPhotos - 1)) + 50;
+            stripCtx.fillStyle = '#FF6B8B'; // Pink color for text
+            stripCtx.font = '700 26px "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
             stripCtx.textAlign = 'center';
             stripCtx.fillText('you are so pretty', stripCanvas.width / 2, textY);
             
             // Display the strip
-            previewImg.src = stripCanvas.toDataURL('image/png');
+            previewImg.src = stripCanvas.toDataURL('image/png', 1.0);
             previewImg.style.display = 'block';
             
             // Enable download button
             downloadBtn.disabled = false;
             
             // Update status
-            statusEl.textContent = 'Your photo strip is ready!';
+            statusEl.textContent = 'Your photo strip is ready! You can preview it and download.';
             startBtn.disabled = false;
             startBtn.textContent = 'Take New Photos';
             
             // Set flag
             photoStripReady = true;
         }
+        
+        // Save the context state before any clipping
+        stripCtx.save();
         
         // Make sure all images are loaded
         photoImages.forEach(img => {
